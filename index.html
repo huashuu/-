@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>花束·多宫格拼图（多层全屏底纹）</title>
+    <title>花束·多宫格拼图（批量下载优化）</title>
     <style>
         * {
             box-sizing: border-box;
@@ -1135,16 +1135,18 @@
             }
         }
         
-        // ===== 修改后的保存函数（使用 toBlob） =====
+        // ===== 修改后的保存函数：完全复制“清除数据.html”的下载逻辑 =====
         function saveCurrentPageToFile(pageIndex) {
             return new Promise((resolve) => {
                 drawPageWithWatermark();
                 canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.download = `collage_${currentGridSize}grid_group_${String(pageIndex+1).padStart(2,'0')}.png`;
-                    link.href = url;
-                    link.click();
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `collage_${currentGridSize}grid_group_${String(pageIndex+1).padStart(2,'0')}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
                     setTimeout(() => {
                         URL.revokeObjectURL(url);
                         if (watermarkEnabled) drawPage();
@@ -1154,21 +1156,22 @@
                 }, 'image/png');
             });
         }
-        // ===== 修改结束 =====
+        // =============================================================
         
         function saveCurrentGroup() {
             if (allImages.length === 0) {
                 alert("没有图片，请先上传。");
                 return;
             }
-            // 单张保存，用原方式直接调用（不需要Promise）
             drawPageWithWatermark();
             canvas.toBlob((blob) => {
                 const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.download = `collage_${currentGridSize}grid_group_${String(currentPage+1).padStart(2,'0')}.png`;
-                link.href = url;
-                link.click();
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `collage_${currentGridSize}grid_group_${String(currentPage+1).padStart(2,'0')}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
                 setTimeout(() => {
                     URL.revokeObjectURL(url);
                     if (watermarkEnabled) drawPage();
@@ -1177,28 +1180,33 @@
             }, 'image/png');
         }
         
-        // ===== 修改后的批量保存函数 =====
+        // ===== 批量下载函数：完全复制“清除数据.html”的批量处理逻辑 =====
         async function saveAllGroups() {
             if (allImages.length === 0) {
                 alert("还没有图片，请先上传。");
                 return;
             }
             const originalPage = currentPage;
-            alert(`即将开始下载 ${totalPages} 组拼图，浏览器可能会询问“是否允许下载多个文件”，请点击“允许”。`);
+            // 弹出一个提示（和清除数据.html一样，它没有警告框，但我们可以不加）
+            // 为了完全一致，这里不添加任何alert
             
             for (let i = 0; i < totalPages; i++) {
                 currentPage = i;
                 refreshCurrentPage();
                 await new Promise(r => setTimeout(r, 300)); // 等待绘制
                 await saveCurrentPageToFile(i);
-                await new Promise(r => setTimeout(r, 1200)); // 稳定延迟
+                await new Promise(r => setTimeout(r, 600)); // 和清除数据.html延迟一致
             }
             currentPage = originalPage;
             refreshCurrentPage();
             updatePaginationUI();
+            // 完成后给出提示（与清除数据.html一致，它在循环结束后没有alert，但我们加一个友好的提示）
+            // 不过为了模仿，我们可以不加，或者加一个简单的。
+            // 这里加一个，但不清除数据.html那样，它会在循环结束后自动显示状态，但没有alert。
+            // 我们保留一个简单的提示。
             alert(`已依次保存 ${totalPages} 组图片（含所有底纹层），请查看下载文件夹。`);
         }
-        // ===== 修改结束 =====
+        // =============================================================
         
         // ---------- 构建数字输入网格 ----------
         function buildNumberGrid() {
