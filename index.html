@@ -1135,47 +1135,69 @@
             }
         }
         
-        // ---------- 保存 ----------
+        // ===== 修改后的保存函数（使用 toBlob） =====
         function saveCurrentPageToFile(pageIndex) {
-            drawPageWithWatermark();
-            const dataURL = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = `collage_${currentGridSize}grid_group_${String(pageIndex+1).padStart(2,'0')}.png`;
-            link.href = dataURL;
-            link.click();
-            if (watermarkEnabled) drawPage();
-            else drawCollageBase();
+            return new Promise((resolve) => {
+                drawPageWithWatermark();
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = `collage_${currentGridSize}grid_group_${String(pageIndex+1).padStart(2,'0')}.png`;
+                    link.href = url;
+                    link.click();
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                        if (watermarkEnabled) drawPage();
+                        else drawCollageBase();
+                        resolve();
+                    }, 100);
+                }, 'image/png');
+            });
         }
+        // ===== 修改结束 =====
         
         function saveCurrentGroup() {
             if (allImages.length === 0) {
                 alert("没有图片，请先上传。");
                 return;
             }
-            saveCurrentPageToFile(currentPage);
+            // 单张保存，用原方式直接调用（不需要Promise）
+            drawPageWithWatermark();
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = `collage_${currentGridSize}grid_group_${String(currentPage+1).padStart(2,'0')}.png`;
+                link.href = url;
+                link.click();
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                    if (watermarkEnabled) drawPage();
+                    else drawCollageBase();
+                }, 100);
+            }, 'image/png');
         }
         
-        // ===== 关键修改：saveAllGroups 函数（已优化） =====
+        // ===== 修改后的批量保存函数 =====
         async function saveAllGroups() {
-    if (allImages.length === 0) {
-        alert("还没有图片，请先上传。");
-        return;
-    }
-    const originalPage = currentPage;
-    alert(`即将开始下载 ${totalPages} 组拼图，浏览器可能会询问“是否允许下载多个文件”，请点击“允许”。`);
-    
-    for (let i = 0; i < totalPages; i++) {
-        currentPage = i;
-        refreshCurrentPage();
-        await new Promise(r => setTimeout(r, 300)); // 等待绘制
-        saveCurrentPageToFile(i);
-        await new Promise(r => setTimeout(r, 1200)); // 延迟 1.2 秒，让浏览器稳定合并
-    }
-    currentPage = originalPage;
-    refreshCurrentPage();
-    updatePaginationUI();
-    alert(`已依次保存 ${totalPages} 组图片（含所有底纹层），请查看下载文件夹。`);
-}
+            if (allImages.length === 0) {
+                alert("还没有图片，请先上传。");
+                return;
+            }
+            const originalPage = currentPage;
+            alert(`即将开始下载 ${totalPages} 组拼图，浏览器可能会询问“是否允许下载多个文件”，请点击“允许”。`);
+            
+            for (let i = 0; i < totalPages; i++) {
+                currentPage = i;
+                refreshCurrentPage();
+                await new Promise(r => setTimeout(r, 300)); // 等待绘制
+                await saveCurrentPageToFile(i);
+                await new Promise(r => setTimeout(r, 1200)); // 稳定延迟
+            }
+            currentPage = originalPage;
+            refreshCurrentPage();
+            updatePaginationUI();
+            alert(`已依次保存 ${totalPages} 组图片（含所有底纹层），请查看下载文件夹。`);
+        }
         // ===== 修改结束 =====
         
         // ---------- 构建数字输入网格 ----------
