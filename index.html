@@ -1157,26 +1157,25 @@
         
         // ===== 关键修改：saveAllGroups 函数（已优化） =====
         async function saveAllGroups() {
-            if (allImages.length === 0) {
-                alert("还没有图片，请先上传。");
-                return;
-            }
-            const originalPage = currentPage;
-            // 提示用户即将批量下载
-            alert(`即将开始下载 ${totalPages} 组拼图，浏览器可能会询问“是否允许下载多个文件”，请点击“允许”。`);
-            
-            for (let i = 0; i < totalPages; i++) {
-                currentPage = i;
-                refreshCurrentPage();
-                await new Promise(r => setTimeout(r, 300)); // 等待画布绘制
-                saveCurrentPageToFile(i);
-                await new Promise(r => setTimeout(r, 800)); // 延迟让浏览器合并下载请求
-            }
-            currentPage = originalPage;
-            refreshCurrentPage();
-            updatePaginationUI();
-            alert(`已依次保存 ${totalPages} 组图片（含所有底纹层），请查看下载文件夹。`);
-        }
+    if (allImages.length === 0) {
+        alert("还没有图片，请先上传。");
+        return;
+    }
+    const originalPage = currentPage;
+    alert(`即将开始下载 ${totalPages} 组拼图，浏览器可能会询问“是否允许下载多个文件”，请点击“允许”。`);
+    
+    for (let i = 0; i < totalPages; i++) {
+        currentPage = i;
+        refreshCurrentPage();
+        await new Promise(r => setTimeout(r, 300)); // 等待绘制
+        saveCurrentPageToFile(i);
+        await new Promise(r => setTimeout(r, 1200)); // 延迟 1.2 秒，让浏览器稳定合并
+    }
+    currentPage = originalPage;
+    refreshCurrentPage();
+    updatePaginationUI();
+    alert(`已依次保存 ${totalPages} 组图片（含所有底纹层），请查看下载文件夹。`);
+}
         // ===== 修改结束 =====
         
         // ---------- 构建数字输入网格 ----------
