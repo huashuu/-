@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>花束·多宫格拼图（批量下载优化）</title>
+    <title>花束·多宫格拼图（iOS相册适配）</title>
     <style>
         * {
             box-sizing: border-box;
@@ -108,6 +108,7 @@
             justify-content: center;
             margin-bottom: 12px;
             overflow-x: auto;
+            position: relative;
         }
         canvas {
             display: block;
@@ -115,8 +116,8 @@
             height: auto;
             background: #cbd5e1;
             border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             cursor: grab;
+            touch-action: none;
         }
         canvas:active {
             cursor: grabbing;
@@ -270,6 +271,9 @@
             background: white;
             color: #1e293b;
             border: 1px solid #cbd5e1;
+        }
+        .btn-success {
+            background: #22c55e;
         }
         .footer {
             margin-top: 24px;
@@ -430,7 +434,7 @@
             margin-left: 4px;
         }
 
-        /* ===== 响应式：平板及手机 ===== */
+        /* ===== 响应式 ===== */
         @media (max-width: 900px) {
             .control-bar {
                 flex-direction: column;
@@ -482,7 +486,7 @@
 <body>
 <div class="container">
     <h1>🌸 花束 · 多宫格拼图</h1>
-    <div class="sub">支持4/6/8/9宫格 · 全局连续编号 · 一键保存 · 多层全屏底纹</div>
+    <div class="sub">支持4/6/8/9宫格 · 拖拽移动 · 水印 · 一键保存</div>
 
     <!-- 控制栏 -->
     <div class="control-bar">
@@ -522,7 +526,7 @@
         <canvas id="collageCanvas" style="width:100%; height:auto; border-radius:16px;"></canvas>
     </div>
 
-    <!-- ===== 水印面板 ===== -->
+    <!-- 水印面板 -->
     <div class="watermark-panel">
         <div class="watermark-header" id="watermarkToggle">
             <span>🖌️ 全屏底纹（点击展开/收起）</span>
@@ -574,6 +578,7 @@
     <div class="action-buttons">
         <button class="btn btn-primary" id="saveBtn">💾 保存当前组</button>
         <button class="btn btn-primary" id="saveAllBtn">📦 一键保存所有组</button>
+        <button class="btn btn-success" id="shareBtn">📤 保存到相册（iOS）</button>
         <button class="btn btn-outline" id="resetOffsetsBtn">⟳ 重置当前组图片位置</button>
         <button class="btn btn-outline" id="clearAllBtn">🗑️ 清空所有图片</button>
     </div>
@@ -625,6 +630,7 @@
         const applySeqBtn = document.getElementById('applySequenceBtn');
         const saveBtn = document.getElementById('saveBtn');
         const saveAllBtn = document.getElementById('saveAllBtn');
+        const shareBtn = document.getElementById('shareBtn');
         const resetOffsetsBtn = document.getElementById('resetOffsetsBtn');
         const clearAllBtn = document.getElementById('clearAllBtn');
         const numbersGridDiv = document.getElementById('numbersGrid');
@@ -1135,7 +1141,7 @@
             }
         }
         
-        // ===== 修改后的保存函数：完全复制“清除数据.html”的下载逻辑 =====
+        // ---------- 保存（下载方式，保留） ----------
         function saveCurrentPageToFile(pageIndex) {
             return new Promise((resolve) => {
                 drawPageWithWatermark();
@@ -1156,7 +1162,6 @@
                 }, 'image/png');
             });
         }
-        // =============================================================
         
         function saveCurrentGroup() {
             if (allImages.length === 0) {
@@ -1180,33 +1185,68 @@
             }, 'image/png');
         }
         
-        // ===== 批量下载函数：完全复制“清除数据.html”的批量处理逻辑 =====
         async function saveAllGroups() {
             if (allImages.length === 0) {
                 alert("还没有图片，请先上传。");
                 return;
             }
             const originalPage = currentPage;
-            // 弹出一个提示（和清除数据.html一样，它没有警告框，但我们可以不加）
-            // 为了完全一致，这里不添加任何alert
-            
             for (let i = 0; i < totalPages; i++) {
                 currentPage = i;
                 refreshCurrentPage();
-                await new Promise(r => setTimeout(r, 300)); // 等待绘制
+                await new Promise(r => setTimeout(r, 300));
                 await saveCurrentPageToFile(i);
-                await new Promise(r => setTimeout(r, 600)); // 和清除数据.html延迟一致
+                await new Promise(r => setTimeout(r, 600));
             }
             currentPage = originalPage;
             refreshCurrentPage();
             updatePaginationUI();
-            // 完成后给出提示（与清除数据.html一致，它在循环结束后没有alert，但我们加一个友好的提示）
-            // 不过为了模仿，我们可以不加，或者加一个简单的。
-            // 这里加一个，但不清除数据.html那样，它会在循环结束后自动显示状态，但没有alert。
-            // 我们保留一个简单的提示。
             alert(`已依次保存 ${totalPages} 组图片（含所有底纹层），请查看下载文件夹。`);
         }
-        // =============================================================
+        
+        // ===== 新增：保存到相册（iOS 专用） =====
+        async function saveToAlbum() {
+            if (allImages.length === 0) {
+                alert("请先上传图片生成拼图。");
+                return;
+            }
+            // 生成当前画布的图片
+            drawPageWithWatermark();
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const file = new File([blob], `collage_${Date.now()}.png`, { type: 'image/png' });
+            
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: '拼图',
+                        files: [file]
+                    });
+                    // 用户完成分享后，恢复画布显示
+                    if (watermarkEnabled) drawPage();
+                    else drawCollageBase();
+                    return;
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.warn('分享失败:', err);
+                    }
+                }
+            }
+            
+            // fallback: 使用下载（安卓或电脑）
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `collage_${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                if (watermarkEnabled) drawPage();
+                else drawCollageBase();
+            }, 100);
+        }
+        // ========================================
         
         // ---------- 构建数字输入网格 ----------
         function buildNumberGrid() {
@@ -1235,7 +1275,7 @@
             }
         }
         
-        // ---------- 拖拽 ----------
+        // ---------- 拖拽（绑定到 canvas） ----------
         let dragActive = false;
         let dragStartX = 0, dragStartY = 0;
         let dragSlotIndex = -1;
@@ -1388,6 +1428,7 @@
         applySeqBtn.addEventListener('click', regenerateAllNumbers);
         saveBtn.addEventListener('click', saveCurrentGroup);
         saveAllBtn.addEventListener('click', saveAllGroups);
+        shareBtn.addEventListener('click', saveToAlbum);
         
         // ===== 水印事件绑定 =====
         let wmExpanded = false;
